@@ -23,7 +23,12 @@
                         <select id="etfSelector" class="bg-transparent border-b-2 border-white/30 focus:outline-none focus:border-white cursor-pointer pb-1 appearance-none pr-4 text-white">
                             <option value="" disabled selected>載入中...</option>
                         </select>
-                        <span class="text-lg font-normal ml-2 opacity-80" id="dateDisplay">05/21 操作日報</span>
+                        <span class="text-lg font-normal ml-2 opacity-80" id="dateDisplay">--/-- 操作日報</span>
+                        
+                        <select id="timeSelector" class="ml-4 bg-transparent border-b border-white/30 text-sm font-normal opacity-90 focus:outline-none focus:border-white cursor-pointer pb-1 appearance-none text-white">
+                            <option value="1" class="text-slate-800">1天變化 (與昨比)</option>
+                            <option value="2" class="text-slate-800">3天變化 (期間累計)</option>
+                        </select>
                     </h1>
                 </div>
                 <div class="flex gap-6 text-right">
@@ -73,13 +78,15 @@
     </main>
 
     <script>
+        let globalData = []; // 儲存全域資料供切換時使用
+
         async function initDashboard() {
             try {
                 const response = await fetch('data.csv');
                 const csvData = await response.text();
                 const rows = csvData.split('\n').filter(row => row.trim() !== '').slice(1);
                 
-                const data = rows.map(row => {
+                globalData = rows.map(row => {
                     const cols = row.split(',');
                     return {
                         date: cols[0],
@@ -92,7 +99,7 @@
                     };
                 });
 
-                const etfMap = [...new Set(data.map(d => `${d.etfId}|${d.etfName}`))];
+                const etfMap = [...new Set(globalData.map(d => `${d.etfId}|${d.etfName}`))];
                 const selector = document.getElementById('etfSelector');
                 selector.innerHTML = ''; 
                 
@@ -105,8 +112,11 @@
                     selector.appendChild(opt);
                 });
 
-                selector.addEventListener('change', () => renderEtfData(data, selector.value));
-                renderEtfData(data, selector.value);
+                // 綁定 ETF 切換與天數切換事件
+                selector.addEventListener('change', () => renderEtfData());
+                document.getElementById('timeSelector').addEventListener('change', () => renderEtfData());
+                
+                renderEtfData(); // 初次渲染
 
             } catch (error) {
                 console.error("資料讀取失敗:", error);
@@ -114,15 +124,24 @@
             }
         }
 
-        function renderEtfData(allData, selectedEtfId) {
-            const etfData = allData.filter(d => d.etfId === selectedEtfId);
+        function renderEtfData() {
+            const selectedEtfId = document.getElementById('etfSelector').value;
+            const lookbackDays = parseInt(document.getElementById('timeSelector').value); // 取得選取的天數
+            
+            const etfData = globalData.filter(d => d.etfId === selectedEtfId);
             const dates = [...new Set(etfData.map(d => d.date))].sort();
             
+            if(dates.length === 0) return;
+
             const today = dates[dates.length - 1];
-            const yesterday = dates[dates.length - 2];
+            
+            // 計算比較的日期，如果選擇 3天(lookback=2)，但資料不夠，就抓最舊的那天(index=0)
+            let compareIndex = dates.length - 1 - lookbackDays;
+            if (compareIndex < 0) compareIndex = 0; 
+            const compareDate = dates[compareIndex];
 
             const todayStocks = etfData.filter(d => d.date === today);
-            const yesterdayStocks = etfData.filter(d => d.date === yesterday);
+            const compareStocks = etfData.filter(d => d.date === compareDate);
 
             const formattedDate = `${today.substring(4,6)}/${today.substring(6,8)}`;
             document.getElementById('etfTitle').textContent = todayStocks[0].etfName;
@@ -135,8 +154,9 @@
 
             let counts = { 'NEW': 0, 'ADD': 0, 'REDUCE': 0, 'DELETE': 0 };
 
+            // 以最新一天為基準，比對過去
             todayStocks.forEach(stock => {
-                const prevVersion = yesterdayStocks.find(s => s.stockId === stock.stockId);
+                const prevVersion = compareStocks.find(s => s.stockId === stock.stockId);
                 let status = '';
                 let diffAmount = 0;
                 let diffWeight = 0;
@@ -167,7 +187,8 @@
                 }
             });
 
-            yesterdayStocks.forEach(stock => {
+            // 檢查過去有，但今天不見的標的 (刪除)
+            compareStocks.forEach(stock => {
                 const todayVersion = todayStocks.find(s => s.stockId === stock.stockId);
                 if (!todayVersion) {
                     counts['DELETE']++;
@@ -181,8 +202,8 @@
             document.getElementById('countReduce').textContent = counts['REDUCE'];
             document.getElementById('countDelete').textContent = counts['DELETE'];
 
-            if (inflowList.innerHTML === '') inflowList.innerHTML = getEmptyStateHTML('今日無新增或加碼標的');
-            if (outflowList.innerHTML === '') outflowList.innerHTML = getEmptyStateHTML('今日無刪除或減碼標的');
+            if (inflowList.innerHTML === '') inflowList.innerHTML = getEmptyStateHTML('期間無新增或加碼標的');
+            if (outflowList.innerHTML === '') outflowList.innerHTML = getEmptyStateHTML('期間無刪除或減碼標的');
         }
 
         function createCardHTML(stock, status, diffAmount, diffPercent, currentWeight, diffWeight) {
