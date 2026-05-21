@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>00981A 主動統一台股增長 - 專業決策儀表板</title>
+    <title>主動型 ETF - 成分股異動追蹤看板</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
@@ -18,12 +18,15 @@
         <div class="max-w-7xl mx-auto">
             <div class="flex justify-between items-end mb-8 border-b border-teal-600/50 pb-4">
                 <div>
-                    <div class="text-teal-200 text-sm font-semibold tracking-wider mb-1" id="etfTitle">主動統一台股增長</div>
+                    <div class="text-xs font-bold tracking-widest text-teal-300 mb-2 flex items-center gap-2">
+                        資料基準日：<span id="dateDisplay" class="num-font text-white bg-teal-900/40 border border-teal-600/30 px-2 py-0.5 rounded">----/--/--</span>
+                    </div>
+                    <div class="text-teal-200 text-sm font-semibold tracking-wider mb-1" id="etfTitle">主動型台股 ETF</div>
                     <h1 class="text-3xl font-bold tracking-wider flex items-center">
                         <select id="etfSelector" class="bg-transparent border-b-2 border-white/30 focus:outline-none focus:border-white cursor-pointer pb-1 appearance-none pr-4 text-white">
                             <option value="" disabled selected>載入中...</option>
                         </select>
-                        <span class="text-lg font-normal ml-2 opacity-80" id="dateDisplay">--/-- 操作日報</span>
+                        <span class="text-xl font-bold ml-2 text-white">成分股異動追蹤看板</span>
                         
                         <select id="timeSelector" class="ml-4 bg-transparent border-b border-white/30 text-sm font-normal opacity-90 focus:outline-none focus:border-white cursor-pointer pb-1 appearance-none text-white">
                             <option value="1" class="text-slate-800">1天變化 (與昨比)</option>
@@ -78,7 +81,7 @@
     </main>
 
     <script>
-        let globalData = []; // 儲存全域資料供切換時使用
+        let globalData = []; 
 
         async function initDashboard() {
             try {
@@ -112,11 +115,10 @@
                     selector.appendChild(opt);
                 });
 
-                // 綁定 ETF 切換與天數切換事件
                 selector.addEventListener('change', () => renderEtfData());
                 document.getElementById('timeSelector').addEventListener('change', () => renderEtfData());
                 
-                renderEtfData(); // 初次渲染
+                renderEtfData(); 
 
             } catch (error) {
                 console.error("資料讀取失敗:", error);
@@ -126,7 +128,7 @@
 
         function renderEtfData() {
             const selectedEtfId = document.getElementById('etfSelector').value;
-            const lookbackDays = parseInt(document.getElementById('timeSelector').value); // 取得選取的天數
+            const lookbackDays = parseInt(document.getElementById('timeSelector').value); 
             
             const etfData = globalData.filter(d => d.etfId === selectedEtfId);
             const dates = [...new Set(etfData.map(d => d.date))].sort();
@@ -135,7 +137,6 @@
 
             const today = dates[dates.length - 1];
             
-            // 計算比較的日期，如果選擇 3天(lookback=2)，但資料不夠，就抓最舊的那天(index=0)
             let compareIndex = dates.length - 1 - lookbackDays;
             if (compareIndex < 0) compareIndex = 0; 
             const compareDate = dates[compareIndex];
@@ -143,9 +144,10 @@
             const todayStocks = etfData.filter(d => d.date === today);
             const compareStocks = etfData.filter(d => d.date === compareDate);
 
-            const formattedDate = `${today.substring(4,6)}/${today.substring(6,8)}`;
+            // 優化日期顯示格式為 YYYY/MM/DD
+            const formattedDate = `${today.substring(0,4)}/${today.substring(4,6)}/${today.substring(6,8)}`;
             document.getElementById('etfTitle').textContent = todayStocks[0].etfName;
-            document.getElementById('dateDisplay').textContent = `${formattedDate} 操作日報`;
+            document.getElementById('dateDisplay').textContent = formattedDate;
 
             const inflowList = document.getElementById('inflowList');
             const outflowList = document.getElementById('outflowList');
@@ -154,7 +156,6 @@
 
             let counts = { 'NEW': 0, 'ADD': 0, 'REDUCE': 0, 'DELETE': 0 };
 
-            // 以最新一天為基準，比對過去
             todayStocks.forEach(stock => {
                 const prevVersion = compareStocks.find(s => s.stockId === stock.stockId);
                 let status = '';
@@ -187,7 +188,6 @@
                 }
             });
 
-            // 檢查過去有，但今天不見的標的 (刪除)
             compareStocks.forEach(stock => {
                 const todayVersion = todayStocks.find(s => s.stockId === stock.stockId);
                 if (!todayVersion) {
