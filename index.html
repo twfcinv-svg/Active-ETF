@@ -3,143 +3,240 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>00981A 主動統一台股增長 - 專業決策儀表板</title>
+    <title>ETF 專業成分股追蹤儀表板</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
-        .num-font { font-family: 'Din Alternate', 'SF Pro Display', sans-serif; font-variant-numeric: tabular-nums; }
-        /* 自訂漸層背景 */
-        .bg-corporate-gradient { background: linear-gradient(135deg, #0f766e 0%, #0369a1 100%); }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', -apple-system, sans-serif; }
+        .num-font { font-family: 'Consolas', monospace; font-variant-numeric: tabular-nums; }
+        .bg-corporate-gradient { background: linear-gradient(135deg, #134e4a 0%, #0c4a6e 100%); }
+        /* 隱藏未載入時的元素 */
+        [v-cloak] { display: none; }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800 min-h-screen">
+<body class="bg-slate-50 text-slate-900 min-h-screen">
 
-    <div class="bg-corporate-gradient text-white pb-16 pt-6 px-6 shadow-lg">
+    <header class="bg-corporate-gradient text-white pb-24 pt-8 px-6 shadow-xl">
         <div class="max-w-7xl mx-auto">
-            <div class="flex justify-between items-end mb-8 border-b border-teal-600/50 pb-4">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 border-b border-white/10 pb-6">
                 <div>
-                    <div class="text-teal-200 text-sm font-semibold tracking-wider mb-1">主動統一台股增長</div>
-                    <h1 class="text-3xl font-bold tracking-wider">00981A <span class="text-lg font-normal ml-2 opacity-80">05/21 操作日報</span></h1>
+                    <div class="flex items-center gap-3 mb-2">
+                        <i class="fa-solid fa-chart-line text-teal-400 text-2xl"></i>
+                        <h1 class="text-3xl font-bold tracking-tight" id="etfNameDisplay">載入資料中...</h1>
+                    </div>
+                    <p class="text-teal-200/80 text-sm font-medium tracking-wide">主動型 ETF 每日成分股異動監測系統</p>
                 </div>
-                <div class="flex gap-6 text-right">
-                    <div>
-                        <div class="text-teal-200 text-xs mb-1">基金規模 (億)</div>
-                        <div class="text-2xl font-bold num-font">2,619.1 <span class="text-sm text-red-300 ml-1">+0.06%</span></div>
-                    </div>
-                    <div class="w-px bg-teal-600/50"></div>
-                    <div>
-                        <div class="text-teal-200 text-xs mb-1">目前折溢價</div>
-                        <div class="text-2xl font-bold num-font text-red-300">+0.17%</div>
-                    </div>
+                
+                <div class="mt-6 md:mt-0 flex flex-col items-end gap-3">
+                    <select id="etfSelector" class="bg-white/10 border border-white/20 text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 transition cursor-pointer">
+                        </select>
+                    <span class="text-xs text-white/50" id="lastUpdateDate">最後更新日: --</span>
                 </div>
             </div>
-            
-            <div class="flex gap-8 text-sm">
-                <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-amber-400"></div>新增 1 檔</div>
-                <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-red-400"></div>加碼 2 檔</div>
-                <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-green-400"></div>減碼 1 檔</div>
-                <div class="flex items-center gap-2 opacity-50"><div class="w-3 h-3 rounded-full bg-slate-400"></div>刪除 0 檔</div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div class="bg-white/5 backdrop-blur-sm border border-white/10 p-4 rounded-xl">
+                    <div class="text-teal-200/60 text-xs mb-1 uppercase font-bold tracking-tighter">當前權重合計</div>
+                    <div class="text-2xl font-bold num-font" id="totalWeight">--%</div>
+                </div>
+                <div class="bg-white/5 backdrop-blur-sm border border-white/10 p-4 rounded-xl">
+                    <div class="text-teal-200/60 text-xs mb-1 uppercase font-bold tracking-tighter">持股總檔數</div>
+                    <div class="text-2xl font-bold num-font" id="stockCount">--</div>
+                </div>
+                <div class="bg-white/5 backdrop-blur-sm border border-white/10 p-4 rounded-xl">
+                    <div class="text-teal-200/60 text-xs mb-1 uppercase font-bold tracking-tighter">今日異動檔數</div>
+                    <div class="text-2xl font-bold num-font text-teal-400" id="changeCount">--</div>
+                </div>
+                <div class="bg-white/5 backdrop-blur-sm border border-white/10 p-4 rounded-xl">
+                    <div class="text-teal-200/60 text-xs mb-1 uppercase font-bold tracking-tighter">監測狀態</div>
+                    <div class="flex items-center gap-2 text-emerald-400 font-bold">
+                        <span class="relative flex h-3 w-3">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                        </span>
+                        運作中
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
+    </header>
 
-    <main class="max-w-7xl mx-auto px-6 -mt-10 pb-12">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-            <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
-                <div class="bg-slate-50 border-b border-slate-200 px-6 py-4">
-                    <h2 class="text-lg font-bold text-slate-800 border-l-4 border-red-500 pl-3">資金流入 (新增 / 加碼)</h2>
+    <main class="max-w-7xl mx-auto px-6 -mt-12 pb-20">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <section class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+                <div class="bg-emerald-50 border-b border-emerald-100 px-6 py-5 flex justify-between items-center">
+                    <h2 class="text-emerald-900 font-bold flex items-center gap-2">
+                        <i class="fa-solid fa-arrow-trend-up"></i> 佈局強勢區 (新增/加碼)
+                    </h2>
+                    <span class="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-1 rounded" id="inflowStat">0 檔</span>
                 </div>
-                
-                <div class="p-6 space-y-4">
-                    <div class="flex items-center justify-between p-4 rounded-lg border border-amber-100 bg-amber-50/30 hover:bg-amber-50 transition">
-                        <div class="flex gap-4 items-center w-1/3">
-                            <span class="bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded">新增</span>
-                            <div>
-                                <div class="font-bold text-lg">同欣電</div>
-                                <div class="text-xs text-slate-500 num-font">6271</div>
-                            </div>
-                        </div>
-                        <div class="w-1/3 text-center">
-                            <div class="text-xs text-slate-500">持股變動 / 幅度</div>
-                            <div class="font-bold text-amber-700 num-font text-lg">+686 <span class="text-sm font-normal">(100%)</span></div>
-                        </div>
-                        <div class="w-1/3 text-right">
-                            <div class="text-xs text-slate-500">權重變動</div>
-                            <div class="font-bold num-font text-lg">0.05%</div>
-                        </div>
+                <div class="p-4 space-y-3 min-h-[300px]" id="inflowList">
                     </div>
+            </section>
 
-                    <div class="flex items-center justify-between p-4 rounded-lg border border-red-100 bg-red-50/30 hover:bg-red-50 transition">
-                        <div class="flex gap-4 items-center w-1/3">
-                            <span class="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">加碼</span>
-                            <div>
-                                <div class="font-bold text-lg">緯穎</div>
-                                <div class="text-xs text-slate-500 num-font">6669</div>
-                            </div>
-                        </div>
-                        <div class="w-1/3 text-center">
-                            <div class="text-xs text-slate-500">持股變動 / 幅度</div>
-                            <div class="font-bold text-red-600 num-font text-lg">+50 <span class="text-sm font-normal">(2.18%)</span></div>
-                        </div>
-                        <div class="w-1/3 text-right">
-                            <div class="text-xs text-slate-500">目前權重</div>
-                            <div class="font-bold num-font text-lg">4.78% <span class="text-sm text-red-500 ml-1">+0.23%</span></div>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center justify-between p-4 rounded-lg border border-red-100 bg-red-50/30 hover:bg-red-50 transition">
-                        <div class="flex gap-4 items-center w-1/3">
-                            <span class="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">加碼</span>
-                            <div>
-                                <div class="font-bold text-lg">嘉澤</div>
-                                <div class="text-xs text-slate-500 num-font">3533</div>
-                            </div>
-                        </div>
-                        <div class="w-1/3 text-center">
-                            <div class="text-xs text-slate-500">持股變動 / 幅度</div>
-                            <div class="font-bold text-red-600 num-font text-lg">+148 <span class="text-sm font-normal">(23.7%)</span></div>
-                        </div>
-                        <div class="w-1/3 text-right">
-                            <div class="text-xs text-slate-500">目前權重</div>
-                            <div class="font-bold num-font text-lg">0.74% <span class="text-sm text-red-500 ml-1">+0.15%</span></div>
-                        </div>
-                    </div>
+            <section class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+                <div class="bg-rose-50 border-b border-rose-100 px-6 py-5 flex justify-between items-center">
+                    <h2 class="text-rose-900 font-bold flex items-center gap-2">
+                        <i class="fa-solid fa-arrow-trend-down"></i> 調節弱勢區 (減碼/刪除)
+                    </h2>
+                    <span class="text-xs font-bold text-rose-600 bg-rose-100 px-2 py-1 rounded" id="outflowStat">0 檔</span>
                 </div>
-            </div>
-
-            <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden flex flex-col">
-                <div class="bg-slate-50 border-b border-slate-200 px-6 py-4">
-                    <h2 class="text-lg font-bold text-slate-800 border-l-4 border-green-500 pl-3">資金流出 (刪除 / 減碼)</h2>
-                </div>
-                
-                <div class="p-6 space-y-4 flex-grow">
-                    <div class="flex items-center justify-between p-4 rounded-lg border border-green-100 bg-green-50/30 hover:bg-green-50 transition">
-                        <div class="flex gap-4 items-center w-1/3">
-                            <span class="bg-green-600 text-white text-xs font-bold px-2 py-1 rounded">減碼</span>
-                            <div>
-                                <div class="font-bold text-lg">華碩</div>
-                                <div class="text-xs text-slate-500 num-font">2357</div>
-                            </div>
-                        </div>
-                        <div class="w-1/3 text-center">
-                            <div class="text-xs text-slate-500">持股變動 / 幅度</div>
-                            <div class="font-bold text-green-700 num-font text-lg">-1,349 <span class="text-sm font-normal">(-83.2%)</span></div>
-                        </div>
-                        <div class="w-1/3 text-right">
-                            <div class="text-xs text-slate-500">目前權重</div>
-                            <div class="font-bold num-font text-lg">0.07% <span class="text-sm text-green-600 ml-1">-0.35%</span></div>
-                        </div>
+                <div class="p-4 space-y-3 min-h-[300px]" id="outflowList">
                     </div>
-
-                    <div class="h-full min-h-[120px] flex items-center justify-center border-2 border-dashed border-slate-200 rounded-lg bg-slate-50/50 mt-4">
-                        <span class="text-slate-400 text-sm">今日無刪除標的</span>
-                    </div>
-                </div>
-            </div>
+            </section>
 
         </div>
     </main>
 
+    <script>
+        // 資料載入與處理邏輯
+        async function initDashboard() {
+            try {
+                const response = await fetch('data.csv');
+                const csvData = await response.text();
+                const rows = csvData.split('\n').filter(row => row.trim() !== '').slice(1);
+                
+                const data = rows.map(row => {
+                    const cols = row.split(',');
+                    return {
+                        date: cols[0],
+                        etfId: cols[1],
+                        etfName: cols[2],
+                        stockId: cols[3],
+                        stockName: cols[4],
+                        amount: parseInt(cols[6]),
+                        weight: parseFloat(cols[8])
+                    };
+                });
+
+                // 取得所有唯一的 ETF
+                const etfMap = [...new Set(data.map(d => `${d.etfId}|${d.etfName}`))];
+                const selector = document.getElementById('etfSelector');
+                etfMap.forEach(etfStr => {
+                    const [id, name] = etfStr.split('|');
+                    const opt = document.createElement('option');
+                    opt.value = id;
+                    opt.textContent = `${id} ${name}`;
+                    selector.appendChild(opt);
+                });
+
+                // 監聽切換事件
+                selector.addEventListener('change', () => renderEtfData(data, selector.value));
+                
+                // 預設渲染第一個 ETF
+                renderEtfData(data, selector.value);
+
+            } catch (error) {
+                console.error("資料讀取失敗:", error);
+                document.getElementById('etfNameDisplay').textContent = "無法載入資料";
+            }
+        }
+
+        function renderEtfData(allData, selectedEtfId) {
+            const etfData = allData.filter(d => d.etfId === selectedEtfId);
+            const dates = [...new Set(etfData.map(d => d.date))].sort();
+            
+            const today = dates[dates.length - 1];
+            const yesterday = dates[dates.length - 2];
+
+            const todayStocks = etfData.filter(d => d.date === today);
+            const yesterdayStocks = etfData.filter(d => d.date === yesterday);
+
+            document.getElementById('etfNameDisplay').textContent = todayStocks[0].etfName;
+            document.getElementById('lastUpdateDate').textContent = `最後更新日: ${today}`;
+            document.getElementById('totalWeight').textContent = todayStocks.reduce((sum, s) => sum + s.weight, 0).toFixed(2) + '%';
+            document.getElementById('stockCount').textContent = todayStocks.length;
+
+            const inflowList = document.getElementById('inflowList');
+            const outflowList = document.getElementById('outflowList');
+            inflowList.innerHTML = '';
+            outflowList.innerHTML = '';
+
+            let inflowCount = 0;
+            let outflowCount = 0;
+
+            // 檢查「今日」的所有標的（判斷：新增、加碼、減碼）
+            todayStocks.forEach(stock => {
+                const prevVersion = yesterdayStocks.find(s => s.stockId === stock.stockId);
+                let status = '';
+                let diffAmount = 0;
+                let diffWeight = 0;
+
+                if (!prevVersion) {
+                    status = 'NEW';
+                    diffAmount = stock.amount;
+                    diffWeight = stock.weight;
+                } else {
+                    diffAmount = stock.amount - prevVersion.amount;
+                    diffWeight = stock.weight - prevVersion.weight;
+                    if (diffAmount > 0) status = 'ADD';
+                    else if (diffAmount < 0) status = 'REDUCE';
+                }
+
+                if (status) {
+                    const card = createCard(stock, status, diffAmount, diffWeight);
+                    if (status === 'NEW' || status === 'ADD') {
+                        inflowList.appendChild(card);
+                        inflowCount++;
+                    } else {
+                        outflowList.appendChild(card);
+                        outflowCount++;
+                    }
+                }
+            });
+
+            // 檢查「昨日」有但「今日」消失的標的（判斷：刪除）
+            yesterdayStocks.forEach(stock => {
+                const todayVersion = todayStocks.find(s => s.stockId === stock.stockId);
+                if (!todayVersion) {
+                    const card = createCard(stock, 'DELETE', -stock.amount, -stock.weight);
+                    outflowList.appendChild(card);
+                    outflowCount++;
+                }
+            });
+
+            document.getElementById('inflowStat').textContent = `${inflowCount} 檔`;
+            document.getElementById('outflowStat').textContent = `${outflowCount} 檔`;
+            document.getElementById('changeCount').textContent = inflowCount + outflowCount;
+        }
+
+        function createCard(stock, status, diffAmount, diffWeight) {
+            const div = document.createElement('div');
+            const isPositive = status === 'NEW' || status === 'ADD';
+            
+            const statusConfig = {
+                'NEW': { label: '新增', color: 'bg-amber-500', border: 'border-amber-100', text: 'text-amber-700' },
+                'ADD': { label: '加碼', color: 'bg-emerald-500', border: 'border-emerald-100', text: 'text-emerald-700' },
+                'REDUCE': { label: '減碼', color: 'bg-rose-500', border: 'border-rose-100', text: 'text-rose-700' },
+                'DELETE': { label: '刪除', color: 'bg-slate-700', border: 'border-slate-100', text: 'text-slate-700' }
+            };
+
+            const config = statusConfig[status];
+
+            div.className = `flex items-center justify-between p-4 rounded-xl border ${config.border} bg-white hover:shadow-md transition cursor-default group`;
+            div.innerHTML = `
+                <div class="flex items-center gap-4 w-1/3">
+                    <span class="${config.color} text-white text-[10px] font-black px-2 py-1 rounded shadow-sm">${config.label}</span>
+                    <div>
+                        <div class="font-bold text-slate-800 group-hover:text-teal-700 transition">${stock.stockName}</div>
+                        <div class="text-xs text-slate-400 num-font">${stock.stockId}</div>
+                    </div>
+                </div>
+                <div class="w-1/3 text-center">
+                    <div class="text-[10px] text-slate-400 font-bold uppercase tracking-tight">股數變動</div>
+                    <div class="font-bold ${config.text} num-font">${diffAmount > 0 ? '+' : ''}${diffAmount.toLocaleString()}</div>
+                </div>
+                <div class="w-1/3 text-right">
+                    <div class="text-[10px] text-slate-400 font-bold uppercase tracking-tight">權重變動</div>
+                    <div class="font-bold text-slate-700 num-font">${diffWeight > 0 ? '+' : ''}${diffWeight.toFixed(2)}%</div>
+                </div>
+            `;
+            return div;
+        }
+
+        initDashboard();
+    </script>
 </body>
 </html>
