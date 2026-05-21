@@ -8,7 +8,6 @@
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
         .num-font { font-family: 'Din Alternate', 'SF Pro Display', sans-serif; font-variant-numeric: tabular-nums; }
-        /* 自訂漸層背景 */
         .bg-corporate-gradient { background: linear-gradient(135deg, #0f766e 0%, #0369a1 100%); }
     </style>
 </head>
@@ -34,15 +33,16 @@
                         </select>
                     </h1>
                 </div>
-                <div class="flex gap-6 text-right">
-                    <div>
-                        <div class="text-teal-200 text-xs mb-1">基金規模 (億)</div>
-                        <div class="text-2xl font-bold num-font">2,619.1 <span class="text-sm text-red-300 ml-1">+0.06%</span></div>
+                
+                <div class="flex flex-col gap-3 text-right">
+                    <div class="flex items-center justify-end gap-3">
+                        <div class="text-teal-200 text-sm font-medium">前五大持股權重</div>
+                        <div class="text-3xl font-bold num-font text-white" id="top5Weight">--%</div>
                     </div>
-                    <div class="w-px bg-teal-600/50"></div>
-                    <div>
-                        <div class="text-teal-200 text-xs mb-1">目前折溢價</div>
-                        <div class="text-2xl font-bold num-font text-red-300">+0.17%</div>
+                    <div class="flex flex-col items-end gap-1.5">
+                        <div class="text-teal-200 text-xs">前三大產業佔比</div>
+                        <div class="flex items-center gap-2 text-sm font-medium" id="top3Industries">
+                            </div>
                     </div>
                 </div>
             </div>
@@ -63,18 +63,14 @@
                 <div class="bg-slate-50 border-b border-slate-200 px-6 py-4">
                     <h2 class="text-lg font-bold text-slate-800 border-l-4 border-red-500 pl-3">資金流入 (新增 / 加碼)</h2>
                 </div>
-                
-                <div class="p-6 space-y-4" id="inflowList">
-                    </div>
+                <div class="p-6 space-y-4" id="inflowList"></div>
             </div>
 
             <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden flex flex-col">
                 <div class="bg-slate-50 border-b border-slate-200 px-6 py-4">
                     <h2 class="text-lg font-bold text-slate-800 border-l-4 border-green-500 pl-3">資金流出 (刪除 / 減碼)</h2>
                 </div>
-                
-                <div class="p-6 space-y-4 flex-grow" id="outflowList">
-                    </div>
+                <div class="p-6 space-y-4 flex-grow" id="outflowList"></div>
             </div>
 
         </div>
@@ -82,6 +78,17 @@
 
     <script>
         let globalData = []; 
+
+        // 產業對照字典 (您可以在此擴充台股代號對應的產業)
+        const industryMap = {
+            '2330': '半導體',
+            '6669': 'AI伺服器',
+            '2382': 'AI伺服器',
+            '3533': '電子零組件',
+            '2308': '電子零組件',
+            '2357': '電腦及週邊',
+            '6271': '半導體'
+        };
 
         async function initDashboard() {
             try {
@@ -136,7 +143,6 @@
             if(dates.length === 0) return;
 
             const today = dates[dates.length - 1];
-            
             let compareIndex = dates.length - 1 - lookbackDays;
             if (compareIndex < 0) compareIndex = 0; 
             const compareDate = dates[compareIndex];
@@ -144,39 +150,55 @@
             const todayStocks = etfData.filter(d => d.date === today);
             const compareStocks = etfData.filter(d => d.date === compareDate);
 
-            // 優化日期顯示格式為 YYYY/MM/DD
+            // 1. 更新基本資訊
             const formattedDate = `${today.substring(0,4)}/${today.substring(4,6)}/${today.substring(6,8)}`;
             document.getElementById('etfTitle').textContent = todayStocks[0].etfName;
             document.getElementById('dateDisplay').textContent = formattedDate;
 
+            // 2. 計算前五大持股權重
+            const sortedStocks = [...todayStocks].sort((a, b) => b.weight - a.weight);
+            const top5WeightSum = sortedStocks.slice(0, 5).reduce((sum, s) => sum + s.weight, 0);
+            document.getElementById('top5Weight').textContent = top5WeightSum.toFixed(2) + '%';
+
+            // 3. 計算前三大產業佔比
+            let industryWeights = {};
+            todayStocks.forEach(stock => {
+                // 若對照表中沒有該股票代號，則預設歸類為「其他」
+                const ind = industryMap[stock.stockId] || '其他';
+                industryWeights[ind] = (industryWeights[ind] || 0) + stock.weight;
+            });
+            
+            const sortedIndustries = Object.entries(industryWeights)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3);
+            
+            const indContainer = document.getElementById('top3Industries');
+            indContainer.innerHTML = sortedIndustries.map(ind => 
+                `<span class="bg-teal-900/40 border border-teal-500/30 px-2 py-1 rounded text-teal-50">${ind[0]} <span class="num-font text-teal-300 ml-1">${ind[1].toFixed(1)}%</span></span>`
+            ).join('');
+
+            // 4. 計算異動清單
             const inflowList = document.getElementById('inflowList');
             const outflowList = document.getElementById('outflowList');
             inflowList.innerHTML = '';
             outflowList.innerHTML = '';
-
             let counts = { 'NEW': 0, 'ADD': 0, 'REDUCE': 0, 'DELETE': 0 };
 
             todayStocks.forEach(stock => {
                 const prevVersion = compareStocks.find(s => s.stockId === stock.stockId);
                 let status = '';
-                let diffAmount = 0;
-                let diffWeight = 0;
-                let diffPercent = 0;
+                let diffAmount = 0; let diffWeight = 0; let diffPercent = 0;
 
                 if (!prevVersion) {
                     status = 'NEW';
-                    diffAmount = stock.amount;
-                    diffWeight = stock.weight;
-                    diffPercent = 100;
+                    diffAmount = stock.amount; diffWeight = stock.weight; diffPercent = 100;
                 } else {
                     diffAmount = stock.amount - prevVersion.amount;
                     diffWeight = stock.weight - prevVersion.weight;
                     if (diffAmount > 0) {
-                        status = 'ADD';
-                        diffPercent = (diffAmount / prevVersion.amount) * 100;
+                        status = 'ADD'; diffPercent = (diffAmount / prevVersion.amount) * 100;
                     } else if (diffAmount < 0) {
-                        status = 'REDUCE';
-                        diffPercent = (Math.abs(diffAmount) / prevVersion.amount) * -100;
+                        status = 'REDUCE'; diffPercent = (Math.abs(diffAmount) / prevVersion.amount) * -100;
                     }
                 }
 
